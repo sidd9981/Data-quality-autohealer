@@ -41,7 +41,7 @@ before downstream impact occurs.
 
 ## Live Dashboard
 
-<img src="dashboard/dashboard.png" width="800" alt="Real-time Data Quality Dashboard"/>
+<img src="dashboard/dashboard_pic .png" width="800" alt="Real-time Data Quality Dashboard"/>
 
 
 The dashboard displays:
