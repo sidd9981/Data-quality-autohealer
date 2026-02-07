@@ -1,0 +1,22 @@
+{
+  "pipeline_id": "demo_pipeline_1",
+  "columns": {
+    "id": "int64",
+    "timestamp": "datetime64[ns]",
+    "user_id": "object",
+    "name": "object",
+    "email": "object",
+    "age": "int64",
+    "salary": "float64",
+    "department": "object",
+    "experience_years": "int64",
+    "performance_score": "float64",
+    "new_field_0": "int64",
+    "new_field_1": "int64"
+  },
+  "updated_at": "2026-02-06T14:42:50.681368",
+  "new_columns": [
+    "new_field_0",
+    "new_field_1"
+  ]
+}

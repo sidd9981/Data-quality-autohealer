@@ -1,0 +1,107 @@
+# Quality Detection Thresholds
+# Configure sensitivity for each quality detector
+
+detection_thresholds:
+  # Ensemble classifier threshold for considering an issue detected
+  ensemble_threshold: 0.70
+  
+  # Individual detector thresholds
+  detectors:
+    schema_drift:
+      threshold: 0.75
+      confidence_required: 0.80
+      description: "Detects schema changes (new/removed columns, type changes)"
+      
+    distribution_shift:
+      threshold: 0.70
+      confidence_required: 0.75
+      description: "Detects statistical distribution changes in data"
+      
+    missing_data:
+      threshold: 0.30  # 30% missing values triggers detection
+      confidence_required: 1.0  # Rule-based, always confident
+      description: "Detects systematic missing data patterns"
+      
+    outlier:
+      threshold: 0.75
+      confidence_required: 0.80
+      iqr_multiplier: 3.0  # IQR * 3 for outlier detection
+      description: "Detects excessive outliers in numerical columns"
+      
+    type_mismatch:
+      threshold: 0.70
+      confidence_required: 0.75
+      description: "Detects incorrect data types in columns"
+
+# Severity classification based on detected issues
+severity_rules:
+  critical:
+    conditions:
+      - "schema_drift AND distribution_shift"
+      - "type_mismatch AND missing_data"
+    min_detectors: 3
+    
+  high:
+    conditions:
+      - "schema_drift OR distribution_shift"
+      - "type_mismatch AND outlier"
+    min_detectors: 2
+    
+  medium:
+    conditions:
+      - "outlier"
+      - "missing_data"
+    min_detectors: 1
+    
+  low:
+    conditions:
+      - "Any single detector with confidence < 0.85"
+    min_detectors: 1
+
+# Quality score calculation
+quality_score:
+  # Weights for each metric category in overall quality score
+  weights:
+    completeness: 0.25      # Missing data impact
+    consistency: 0.20       # Distribution stability
+    validity: 0.25          # Type correctness
+    uniqueness: 0.15        # Duplicate detection
+    accuracy: 0.15          # Outlier impact
+  
+  # Score ranges
+  excellent: 85-100
+  good: 70-84
+  fair: 50-69
+  poor: 0-49
+
+# Alert configuration
+alerting:
+  # When to send alerts vs auto-remediate
+  alert_on_critical: true
+  alert_on_high: true
+  alert_on_medium: false
+  alert_on_low: false
+  
+  # Alert channels
+  channels:
+    - kafka  # Always send to Kafka
+    - email  # For critical/high severity
+    - slack  # For critical only
+  
+  # Rate limiting
+  max_alerts_per_hour: 50
+  dedup_window_minutes: 5
+
+# Performance thresholds
+performance:
+  max_profiling_time_seconds: 30
+  max_detection_time_seconds: 5
+  max_remediation_time_seconds: 300
+  
+  # Data size limits
+  max_rows_per_check: 10000000  # 10M rows
+  max_columns_per_check: 1000
+  
+  # Kafka settings
+  kafka_batch_size: 100
+  kafka_timeout_seconds: 10

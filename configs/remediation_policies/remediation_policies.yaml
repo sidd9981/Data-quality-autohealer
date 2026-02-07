@@ -1,0 +1,233 @@
+# Auto-Remediation Policies
+# Defines when and how to automatically fix quality issues
+
+remediation_enabled: true
+
+# Per-issue remediation strategies
+remediation_strategies:
+  
+  schema_drift:
+    auto_remediate: true
+    max_retries: 3
+    timeout_seconds: 300
+    
+    actions:
+      - name: "detect_schema_changes"
+        description: "Identify new/removed columns and type changes"
+        required: true
+        
+      - name: "update_schema_registry"
+        description: "Update schema registry with new schema"
+        required: true
+        
+      - name: "trigger_data_reingestion"
+        description: "Re-ingest data with updated schema"
+        required: true
+        
+      - name: "validate_remediation"
+        description: "Verify schema drift resolved"
+        required: true
+        
+      - name: "send_notification"
+        description: "Notify stakeholders of schema change"
+        required: false
+    
+    rollback_on_failure: true
+    notify_on_completion: true
+    
+  distribution_shift:
+    auto_remediate: true
+    max_retries: 2
+    timeout_seconds: 600
+    
+    actions:
+      - name: "analyze_distribution_change"
+        description: "Identify which features shifted"
+        required: true
+        
+      - name: "retrain_models"
+        description: "Retrain ML models with new distribution"
+        required: true
+        
+      - name: "update_validation_rules"
+        description: "Update data validation rules"
+        required: true
+        
+      - name: "validate_remediation"
+        description: "Verify distribution shift resolved"
+        required: true
+        
+      - name: "send_notification"
+        description: "Notify data science team"
+        required: true
+    
+    rollback_on_failure: false  # Model retraining can't be rolled back
+    notify_on_completion: true
+    
+  missing_data:
+    auto_remediate: true
+    max_retries: 2
+    timeout_seconds: 180
+    
+    actions:
+      - name: "analyze_missing_pattern"
+        description: "Determine if missing is systematic or random"
+        required: true
+        
+      - name: "impute_missing_values"
+        description: "Fill missing values using learned patterns"
+        required: true
+        conditions:
+          - "missing_percentage < 30"
+        
+      - name: "flag_incomplete_records"
+        description: "Mark records with >30% missing for review"
+        required: true
+        conditions:
+          - "missing_percentage >= 30"
+        
+      - name: "validate_remediation"
+        description: "Verify missing data handled"
+        required: true
+        
+      - name: "send_notification"
+        description: "Notify if systematic missingness detected"
+        required: false
+    
+    rollback_on_failure: true
+    notify_on_completion: false
+    
+  outlier:
+    auto_remediate: true
+    max_retries: 2
+    timeout_seconds: 120
+    
+    actions:
+      - name: "identify_outliers"
+        description: "Locate specific outlier records"
+        required: true
+        
+      - name: "quarantine_outliers"
+        description: "Move outliers to quarantine table"
+        required: true
+        conditions:
+          - "outlier_percentage < 5"
+        
+      - name: "statistical_correction"
+        description: "Apply winsorization/capping"
+        required: false
+        
+      - name: "validate_remediation"
+        description: "Verify outliers handled"
+        required: true
+        
+      - name: "send_notification"
+        description: "Alert if outlier rate > 5%"
+        required: true
+        conditions:
+          - "outlier_percentage >= 5"
+    
+    rollback_on_failure: true
+    notify_on_completion: false
+    
+  type_mismatch:
+    auto_remediate: true
+    max_retries: 3
+    timeout_seconds: 240
+    
+    actions:
+      - name: "identify_type_errors"
+        description: "Find columns with type mismatches"
+        required: true
+        
+      - name: "coerce_types"
+        description: "Convert to correct data types"
+        required: true
+        
+      - name: "reject_invalid_records"
+        description: "Quarantine records that can't be coerced"
+        required: true
+        
+      - name: "validate_remediation"
+        description: "Verify type mismatches resolved"
+        required: true
+        
+      - name: "send_notification"
+        description: "Notify if rejection rate > 1%"
+        required: false
+    
+    rollback_on_failure: true
+    notify_on_completion: false
+
+# Decision rules for remediation
+decision_rules:
+  # Automatically remediate if
+  auto_remediate_conditions:
+    - "severity in [medium, high, critical]"
+    - "pipeline_sla_at_risk == true"
+    - "business_hours == true"
+  
+  # Alert only (no auto-fix) if
+  alert_only_conditions:
+    - "severity == low"
+    - "business_hours == false"
+    - "manual_approval_required == true"
+  
+  # Cost-benefit analysis
+  cost_benefit:
+    max_remediation_cost_dollars: 100
+    max_downtime_minutes: 30
+    calculate_expected_value: true
+
+# Remediation scheduling
+scheduling:
+  # When to run remediation
+  allowed_hours:
+    start: 6  # 6 AM
+    end: 22   # 10 PM
+  
+  # Throttling
+  max_concurrent_remediations: 3
+  min_time_between_remediations_seconds: 60
+  
+  # Priority queue
+  priority_order:
+    - critical
+    - high
+    - medium
+    - low
+
+# Notification settings
+notifications:
+  email:
+    enabled: false
+    recipients:
+      - "data-team@company.com"
+      - "ml-ops@company.com"
+    
+  slack:
+    enabled: false
+    webhook_url: "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+    channel: "#data-quality-alerts"
+    
+  pagerduty:
+    enabled: false
+    integration_key: "YOUR_PAGERDUTY_KEY"
+
+# Rollback configuration
+rollback:
+  enabled: true
+  auto_rollback_on_failure: true
+  backup_retention_hours: 24
+  max_rollback_attempts: 1
+
+# Metrics and monitoring
+metrics:
+  track_remediation_success_rate: true
+  track_mttr: true
+  track_cost_per_remediation: true
+  track_false_positive_rate: true
+  
+  # Export to
+  export_to_prometheus: true
+  export_to_mlflow: true

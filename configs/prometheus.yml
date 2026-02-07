@@ -1,0 +1,12 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'quality_api'
+    static_configs:
+      - targets: ['quality_api:8000']
+  
+  - job_name: 'kafka'
+    static_configs:
+      - targets: ['kafka:9092']

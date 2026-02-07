@@ -1,0 +1,199 @@
+# Monitoring and Observability Configuration
+
+# Prometheus metrics
+prometheus:
+  enabled: true
+  port: 9090
+  scrape_interval_seconds: 15
+  
+  metrics:
+    # System metrics
+    - name: "dq_quality_checks_total"
+      type: "counter"
+      description: "Total number of quality checks performed"
+      labels: ["pipeline_id", "status"]
+      
+    - name: "dq_issues_detected_total"
+      type: "counter"
+      description: "Total issues detected by type"
+      labels: ["issue_type", "severity", "pipeline_id"]
+      
+    - name: "dq_remediations_total"
+      type: "counter"
+      description: "Total remediation actions triggered"
+      labels: ["issue_type", "action_type", "status"]
+      
+    - name: "dq_quality_score"
+      type: "gauge"
+      description: "Current quality score (0-100)"
+      labels: ["pipeline_id"]
+      
+    - name: "dq_mttr_seconds"
+      type: "histogram"
+      description: "Mean time to recovery in seconds"
+      labels: ["issue_type"]
+      buckets: [30, 60, 120, 300, 600, 1800, 3600]
+      
+    - name: "dq_detection_latency_seconds"
+      type: "histogram"
+      description: "Time to detect quality issue"
+      labels: ["detector"]
+      buckets: [0.1, 0.5, 1, 2, 5, 10]
+      
+    - name: "dq_profiling_duration_seconds"
+      type: "histogram"
+      description: "PySpark profiling duration"
+      labels: ["pipeline_id", "data_size_mb"]
+      buckets: [1, 5, 10, 30, 60, 120]
+      
+    - name: "dq_detector_accuracy"
+      type: "gauge"
+      description: "Per-detector accuracy on validation set"
+      labels: ["detector"]
+      
+    - name: "dq_false_positive_rate"
+      type: "gauge"
+      description: "False positive rate per detector"
+      labels: ["detector"]
+
+# Logging configuration
+logging:
+  level: "INFO"
+  format: "json"
+  
+  handlers:
+    console:
+      enabled: true
+      level: "INFO"
+      
+    file:
+      enabled: true
+      level: "DEBUG"
+      path: "logs/data_quality.log"
+      max_bytes: 10485760  # 10MB
+      backup_count: 5
+      
+    kafka:
+      enabled: true
+      level: "INFO"
+      topic: "data-quality-logs"
+      
+  loggers:
+    - name: "detectors"
+      level: "DEBUG"
+    - name: "remediation"
+      level: "INFO"
+    - name: "kafka"
+      level: "WARNING"
+    - name: "pyspark"
+      level: "ERROR"
+
+# Grafana dashboards
+grafana:
+  enabled: true
+  url: "http://localhost:3000"
+  
+  dashboards:
+    - name: "Data Quality Overview"
+      panels:
+        - "Quality Score Timeline"
+        - "Issues by Type"
+        - "Remediation Success Rate"
+        - "MTTR Trend"
+        - "Pipeline Health Status"
+        
+    - name: "Detector Performance"
+      panels:
+        - "Detector Accuracy"
+        - "False Positive Rate"
+        - "Detection Latency"
+        - "Detector Invocations"
+        
+    - name: "System Performance"
+      panels:
+        - "Profiling Duration"
+        - "Kafka Lag"
+        - "API Response Time"
+        - "Resource Utilization"
+
+# Alerting rules
+alerting:
+  alert_manager_url: "http://localhost:9093"
+  
+  rules:
+    - name: "HighQualityIssueRate"
+      condition: "rate(dq_issues_detected_total[5m]) > 10"
+      severity: "warning"
+      description: "More than 10 issues detected per minute"
+      annotations:
+        summary: "High rate of quality issues detected"
+        
+    - name: "LowQualityScore"
+      condition: "dq_quality_score < 70"
+      severity: "critical"
+      description: "Quality score dropped below threshold"
+      for_duration: "5m"
+      
+    - name: "RemediationFailureRate"
+      condition: "rate(dq_remediations_total{status='failed'}[10m]) > 0.2"
+      severity: "warning"
+      description: "More than 20% of remediations failing"
+      
+    - name: "DetectorDown"
+      condition: "up{job='data-quality-detectors'} == 0"
+      severity: "critical"
+      description: "Detector service is down"
+      
+    - name: "HighMTTR"
+      condition: "avg(dq_mttr_seconds) > 600"
+      severity: "warning"
+      description: "Average MTTR exceeds 10 minutes"
+
+# Health checks
+health_checks:
+  endpoints:
+    - name: "api"
+      url: "http://localhost:8000/health"
+      interval_seconds: 30
+      timeout_seconds: 5
+      
+    - name: "kafka"
+      type: "kafka_broker"
+      bootstrap_servers: "localhost:9092"
+      interval_seconds: 60
+      
+    - name: "detectors"
+      type: "custom"
+      check_function: "check_detectors_loaded"
+      interval_seconds: 120
+      
+    - name: "airflow"
+      url: "http://localhost:8080/health"
+      interval_seconds: 60
+      timeout_seconds: 10
+
+# Data retention
+retention:
+  quality_metrics_days: 90
+  alerts_days: 30
+  remediation_logs_days: 60
+  profiling_results_days: 7
+  
+  # Archive settings
+  archive_to_s3: false
+  s3_bucket: "data-quality-archives"
+  
+# Performance optimization
+optimization:
+  # Caching
+  cache_enabled: true
+  cache_ttl_seconds: 300
+  cache_backend: "redis"
+  
+  # Batch processing
+  batch_size: 1000
+  parallel_workers: 4
+  
+  # Model optimization
+  use_quantized_models: false  # Set true for production
+  use_onnx_runtime: false      # Set true if available
